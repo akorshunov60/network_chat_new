@@ -1,21 +1,27 @@
 package chat.handler;
 
 import chat.MyServer;
-import java.io.*;
-import java.net.Socket;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import chat.auth.*;
+import chat.auth.AuthService;
 import clientserver.Command;
 import clientserver.CommandType;
 import clientserver.commands.AuthCommandData;
 import clientserver.commands.PrivateMessageCommandData;
 import clientserver.commands.PublicMessageCommandData;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+import java.util.Date;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ClientHandler {
+
+    private static final Logger logger = Logger.getLogger(ClientHandler.class.getName());
 
     private final MyServer myServer;
     private final Socket clientSocket;
@@ -26,16 +32,15 @@ public class ClientHandler {
     public ClientHandler(MyServer myServer, Socket clientSocket) {
         this.myServer = myServer;
         this.clientSocket = clientSocket;
-        //clientSocket.setSoTimeout(120000);
-        //new Timer().schedule(authentication(), 60000);
     }
+    //clientSocket.setSoTimeout();
+        //new Timer().schedule(authentication(), 60000);
 
     public void handle() throws IOException {
         in = new ObjectInputStream(clientSocket.getInputStream());
         out = new ObjectOutputStream(clientSocket.getOutputStream());
 
-/*
-        new Thread(() -> {
+/*        new Thread(() -> {
             try {
                 authentication();
                 readMessage();
@@ -49,43 +54,55 @@ public class ClientHandler {
             try {
                 authentication();
                 readMessage();
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 System.out.println(e.getMessage());
             }
         });
         executorService.shutdown();
     }
 
-    private void authentication() throws IOException {
+    private void authentication() throws IOException, InterruptedException {
+/*
+       class ScheduledTask extends TimerTask {
+
+            Date now;
+
+            @Override
+            public void run() {
+                now = new Date();
+                System.out.println("Текущая дата и время : " + now);
+            }
+        }
+ */
 
         while (true) {
 
             Command command = readCommand();
-            if (command == null) {
-                /*try {
-                    System.out.println("У вас есть 2 минуты, чтобы авторизоваться");
-                    System.out.println("Введите логин и пароль:");
+/*
+            Timer time = new Timer();
+            ScheduledTask st = new ScheduledTask();
+            time.schedule(st, 0, 3000);
+            for (int i = 0; i <= 5; i++) {
+                Thread.sleep(3000);
+                System.out.println("Включен обратный отсчет: " + i);
+                if (i == 5) {
+                    System.out.println("Приложение будет закрыто!");
                     clientSocket.close();
+                    System.exit(0);
                 }
-                catch (SocketTimeoutException s) {
-                    System.out.println("Соединение будет закрыто!");
-                    break;
-                }
-                catch (IOException e) {
-                    e.printStackTrace();
-                    break;
-                }*/
+            }
+ */
+
+            if (command == null) {
                 continue;
             }
-            if (command.getType() == CommandType.AUTH) {
 
+            if (command.getType() == CommandType.AUTH) {
                 boolean isSuccessAuth = processAuthCommand(command);
-                if (isSuccessAuth) {
-                    break;
-                }
-            } else {
-                sendMessage(Command.authErrorCommand("Ошибка авторизации"));
+                if (isSuccessAuth) { break; }
             }
+            else {
+                sendMessage(Command.authErrorCommand("Ошибка авторизации")); }
         }
     }
 
