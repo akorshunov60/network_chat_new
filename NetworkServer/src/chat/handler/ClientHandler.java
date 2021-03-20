@@ -7,16 +7,13 @@ import clientserver.CommandType;
 import clientserver.commands.AuthCommandData;
 import clientserver.commands.PrivateMessageCommandData;
 import clientserver.commands.PublicMessageCommandData;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.Date;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.logging.Level;
+import java.net.SocketTimeoutException;
+import java.util.concurrent.*;
 import java.util.logging.Logger;
 
 public class ClientHandler {
@@ -33,14 +30,15 @@ public class ClientHandler {
         this.myServer = myServer;
         this.clientSocket = clientSocket;
     }
-    //clientSocket.setSoTimeout();
-        //new Timer().schedule(authentication(), 60000);
 
     public void handle() throws IOException {
         in = new ObjectInputStream(clientSocket.getInputStream());
         out = new ObjectOutputStream(clientSocket.getOutputStream());
 
-/*        new Thread(() -> {
+        clientSocket.setSoTimeout(120000);
+
+/*
+        new Thread(() -> {
             try {
                 authentication();
                 readMessage();
@@ -49,54 +47,48 @@ public class ClientHandler {
             }
         }).start();
 */
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-        executorService.execute(() -> {
+
+/*
+        ExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        Callable<Object> task = () -> {
+            authentication();
+            return null;
+        };
+        Future<Object> future = executorService.submit(task);
+        try {
+            Object result = future.get(60, TimeUnit.SECONDS);
+            System.out.println(result);
+        } catch (TimeoutException e) {
+            System.out.println("Вы исчерпали лимит времени на авторизацию!");
+            clientSocket.close();
+        } catch (InterruptedException e) {
+            System.out.println(e.getMessage());
+        } catch (ExecutionException e) {
+            System.out.println("ExecutionException");
+        } finally {
+            executorService.shutdown();
+        }
+*/
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
             try {
                 authentication();
                 readMessage();
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException e) {
+                e.printStackTrace();
                 System.out.println(e.getMessage());
             }
         });
-        executorService.shutdown();
+        executor.shutdown();
     }
 
-    private void authentication() throws IOException, InterruptedException {
-/*
-       class ScheduledTask extends TimerTask {
-
-            Date now;
-
-            @Override
-            public void run() {
-                now = new Date();
-                System.out.println("Текущая дата и время : " + now);
-            }
-        }
- */
+    private void authentication() throws IOException {
 
         while (true) {
-
             Command command = readCommand();
-/*
-            Timer time = new Timer();
-            ScheduledTask st = new ScheduledTask();
-            time.schedule(st, 0, 3000);
-            for (int i = 0; i <= 5; i++) {
-                Thread.sleep(3000);
-                System.out.println("Включен обратный отсчет: " + i);
-                if (i == 5) {
-                    System.out.println("Приложение будет закрыто!");
-                    clientSocket.close();
-                    System.exit(0);
+                if (command == null) {
+                    continue;
                 }
-            }
- */
-
-            if (command == null) {
-                continue;
-            }
-
             if (command.getType() == CommandType.AUTH) {
                 boolean isSuccessAuth = processAuthCommand(command);
                 if (isSuccessAuth) { break; }
@@ -151,7 +143,6 @@ public class ClientHandler {
             if (command == null) {
                 continue;
             }
-
             switch (command.getType()) {
                 case END:
                     return;
